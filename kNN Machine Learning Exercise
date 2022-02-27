@@ -1,0 +1,104 @@
+from turtle import clear, position
+import numpy as np
+import pandas as pd
+from collections import Counter
+import io
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.model_selection import StratifiedKFold
+from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
+from sklearn.preprocessing import scale
+
+
+
+# Uploaded dataset from my computer need to try and figure out who to do that from any computer using github
+df = pd.read_excel(r'C:\Users\KevinPetrie\Desktop\University\Player Dataset.xlsx', header = None)
+New_Header = df.iloc[0]
+Instat_Data = df[1:]
+Instat_Data.columns = New_Header
+
+Instat_Data = pd.DataFrame(Instat_Data)
+
+
+#Check data is correct
+#print (Instat_Data)
+
+Instat_Data = Instat_Data.replace('-', 0, regex=True)
+#test the above worked
+#print (Instat_Data['Goals (total)'].head(30))
+
+Instat_Data['Foot Classification'] = pd.factorize(Instat_Data['Foot'])[0]
+# Ensure this has been done properly
+#print (Instat_Data.head(45))
+
+# Remove any secondary positions
+Instat_Data['Main Position'] = Instat_Data['Position'].str.split(",").str[0]
+
+
+Instat_Data = Instat_Data.drop(Instat_Data[Instat_Data['Main Position'] == 'GK'].index)
+Instat_Data = Instat_Data.drop(Instat_Data[Instat_Data['Minutes played (total)'] < 300].index)
+
+
+# Drop columns from Dataframe and add main position, so data is ready for AI models
+Instat_Data = Instat_Data.drop(['Position', 'InStat Index', 'Nationality', 'National team ', 'Age', 'Height', 'Weight', 'Foot'], axis=1)
+#print (Instat_Data.head(55))
+
+
+
+# implement kNN
+# understanding the shape of the data
+Instat_Data.shape[1]
+Independent_Variable = Instat_Data.iloc[:, 2:37].to_numpy()
+Dependent_Variable = Instat_Data[['Main Position']].to_numpy()
+
+#Scale the independent variables to allow for a better algorthim 
+Independent_Variable = scale(Independent_Variable)
+
+kNN_Accuracy_Score = []
+
+kNN_Model = KNeighborsClassifier(n_neighbors = 7, metric= 'cosine')
+k_Folds = StratifiedKFold(n_splits = 4)
+
+for Train, Test in k_Folds.split(Independent_Variable, Dependent_Variable):
+    Independent_Variable_Train, Independent_Variable_Test, Dependent_Variable_Train, Dependent_Variable_Test = Independent_Variable[Train], Independent_Variable[Test], Dependent_Variable[Train], Dependent_Variable[Test]
+
+    kNN_Model.fit(Independent_Variable[Train], np.ravel(Dependent_Variable[Train]))
+    kNN_Predictions = kNN_Model.predict(Independent_Variable_Test)
+    kNN_Accuracy_Test = accuracy_score(kNN_Predictions, Dependent_Variable_Test)
+    kNN_Accuracy_Score.append(kNN_Accuracy_Test)
+
+print(confusion_matrix(Dependent_Variable_Test, kNN_Predictions))
+print(classification_report(Dependent_Variable_Test, kNN_Predictions))
+
+print (kNN_Accuracy_Score)
+
+#Does removing side bias improve the algorithm
+
+Instat_Data.loc[Instat_Data['Main Position'] == 'RD', 'Main Position'] = 'FB'
+Instat_Data.loc[Instat_Data['Main Position'] == 'LD', 'Main Position'] = 'FB'
+Instat_Data.loc[Instat_Data['Main Position'] == 'DM', 'Main Position'] = 'CM'
+Instat_Data.loc[Instat_Data['Main Position'] == 'RM', 'Main Position'] = 'WM'
+Instat_Data.loc[Instat_Data['Main Position'] == 'LM', 'Main Position'] = 'WM'
+
+Independent_Variable = Instat_Data.iloc[:, 2:37].to_numpy()
+Dependent_Variable = Instat_Data[['Main Position']].to_numpy()
+
+
+kNN_Accuracy_Score = []
+
+kNN_Model = KNeighborsClassifier(n_neighbors = 9, metric= 'cosine')
+k_Folds = StratifiedKFold(n_splits = 10)
+
+for Train, Test in k_Folds.split(Independent_Variable, Dependent_Variable):
+    Independent_Variable_Train, Independent_Variable_Test, Dependent_Variable_Train, Dependent_Variable_Test = Independent_Variable[Train], Independent_Variable[Test], Dependent_Variable[Train], Dependent_Variable[Test]
+
+    kNN_Model.fit(Independent_Variable[Train], np.ravel(Dependent_Variable[Train]))
+    kNN_Predictions = kNN_Model.predict(Independent_Variable_Test)
+    kNN_Accuracy_Test = accuracy_score(kNN_Predictions, Dependent_Variable_Test)
+    kNN_Accuracy_Score.append(kNN_Accuracy_Test)
+
+
+
+print(confusion_matrix(Dependent_Variable_Test, kNN_Predictions))
+print(classification_report(Dependent_Variable_Test, kNN_Predictions))
+
+print (kNN_Accuracy_Score)
