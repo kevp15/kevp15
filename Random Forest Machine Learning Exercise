@@ -1,0 +1,80 @@
+
+from turtle import clear, position
+import pandas as pd
+from sklearn.metrics import ( classification_report, confusion_matrix)
+from sklearn.model_selection import  train_test_split
+from sklearn.ensemble import RandomForestClassifier 
+from numpy import mean
+from sklearn.model_selection import cross_val_score
+from sklearn import metrics
+from sklearn.model_selection import RepeatedStratifiedKFold
+
+
+# Uploaded dataset from my computer need to try and figure out who to do that from any computer using github
+df_RF = pd.read_excel(r'C:\Users\KevinPetrie\Desktop\University\Player Dataset.xlsx', header = None)
+New_Header = df_RF.iloc[0]
+Instat_Data_RF = df_RF[1:]
+Instat_Data_RF.columns = New_Header
+Instat_Data_RF = pd.DataFrame(Instat_Data_RF)
+#Check data is correct
+#print (Instat_Data)
+
+Instat_Data_RF = Instat_Data_RF.replace('-', 0, regex=True)
+#test the above worked
+#print (Instat_Data_RF['Goals (total)'].head(30))
+
+# Change Foot to a numeric value
+Instat_Data_RF['Foot Classification'] = pd.factorize(Instat_Data_RF['Foot'])[0]
+# Remove any secondary positions
+Instat_Data_RF['Main Position'] = Instat_Data_RF['Position'].str.split(",").str[0]
+
+# Ensure this has been done properly
+#print (Instat_Data.head(45))
+
+#Remove any Goal Keepers from the data set. The data available does not ave any goalkeeper metrics in it.
+Instat_Data_RF = Instat_Data_RF.drop(Instat_Data_RF[Instat_Data_RF['Main Position'] == 'GK'].index)
+#Remove any players that have not played a minimum of 300 minutes. Players that have played less will likely not have enough data to quantify their position
+Instat_Data_RF = Instat_Data_RF.drop(Instat_Data_RF[Instat_Data_RF['Minutes played (total)'] < 300].index)
+
+# Drop columns from Dataframe and add main position, so data is ready for AI models
+Instat_Data_RF = Instat_Data_RF.drop(['Position', 'InStat Index', 'Nationality', 'National team ', 'Age', 'Height', 'Weight', 'Foot'], axis=1)
+#print (Instat_Data.head(25))
+
+X = Instat_Data_RF.iloc[:, 2:37]
+y = Instat_Data_RF[['Main Position']]
+
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=1515)
+
+
+
+clf=RandomForestClassifier(n_estimators = 1000, random_state = 30)
+clf.fit(X_train,y_train)
+
+y_pred =clf.predict(X_test)
+
+#print(metrics.accuracy_score(y_test, y_pred))
+#print(confusion_matrix(y_test, y_pred))
+#print(classification_report(y_test, y_pred))
+
+
+Instat_Data_RF.loc[Instat_Data_RF['Main Position'] == 'RD', 'Main Position'] = 'FB'
+Instat_Data_RF.loc[Instat_Data_RF['Main Position'] == 'LD', 'Main Position'] = 'FB'
+Instat_Data_RF.loc[Instat_Data_RF['Main Position'] == 'DM', 'Main Position'] = 'CM'
+Instat_Data_RF.loc[Instat_Data_RF['Main Position'] == 'RM', 'Main Position'] = 'WM'
+Instat_Data_RF.loc[Instat_Data_RF['Main Position'] == 'LM', 'Main Position'] = 'WM'
+
+X = Instat_Data_RF.iloc[:, 2:37]
+y = Instat_Data_RF[['Main Position']]
+
+
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=1515)
+
+clf=RandomForestClassifier(n_estimators = 10, random_state = 15)
+clf.fit(X_train,y_train)
+
+y_pred =clf.predict(X_test)
+
+print(metrics.accuracy_score(y_test, y_pred))
+
+print(confusion_matrix(y_test, y_pred))
+print(classification_report(y_test, y_pred))
